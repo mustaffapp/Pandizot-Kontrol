@@ -169,7 +169,10 @@ function setMode(m){localStorage.setItem("mode",m);applyMode(m);}
 applyMode(localStorage.getItem("mode")||"system");
 
 async function manualConnect(){
- device = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}]});
+ device = await navigator.bluetooth.requestDevice({ 
+  acceptAllDevices:true,
+  optionalServices:[SERVICE]
+ });
  await connectDevice();
 }
 async function connectDevice(){
