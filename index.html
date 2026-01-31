@@ -6,89 +6,105 @@
 <title>Switch Controller</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
+
 <style>
 :root{
  --theme:#007aff;
  --bg:#f2f2f7;
- --card:#fff;
+ --card:rgba(255,255,255,.85);
  --text:#000;
+ --separator:rgba(0,0,0,.1);
 }
 [data-theme="dark"]{
  --bg:#000;
- --card:#1c1c1e;
+ --card:rgba(28,28,30,.8);
  --text:#fff;
+ --separator:rgba(255,255,255,.12);
 }
+*{box-sizing:border-box}
 body{
  margin:0;
  background:var(--bg);
- font-family:-apple-system;
+ font-family:-apple-system,BlinkMacSystemFont;
  color:var(--text);
 }
-.header{
- padding:18px;
- font-size:20px;
- font-weight:600;
+.header{padding:24px 20px 10px;font-size:34px;font-weight:700}
+.subheader{padding:0 20px 10px;color:gray;font-size:14px}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px}
+.card{
+ margin:12px;
+ padding:14px 16px;
+ border-radius:18px;
+ background:var(--card);
+ backdrop-filter:blur(20px);
+ -webkit-backdrop-filter:blur(20px);
+}
+.row{
  display:flex;
  justify-content:space-between;
  align-items:center;
+ padding:12px 0;
+ border-bottom:1px solid var(--separator);
 }
-.card{
- background:var(--card);
- margin:12px;
- padding:16px;
- border-radius:14px;
-}
+.row:last-child{border:none}
 button{
- padding:10px 16px;
  border:none;
- border-radius:12px;
  background:var(--theme);
  color:white;
+ padding:10px 18px;
+ border-radius:999px;
  font-size:15px;
 }
-.switchRow{
+.iconbtn{background:none;color:var(--theme);font-size:22px;padding:0}
+.segment{
  display:flex;
- justify-content:space-between;
- align-items:center;
- margin:12px 0;
+ background:#d1d1d6;
+ border-radius:10px;
+ overflow:hidden;
 }
-.onoff button{margin-left:6px;background:#444}
+[data-theme="dark"] .segment{background:#2c2c2e}
+.segment button{flex:1;background:none;color:inherit;padding:6px 0}
+.segment .active{background:var(--theme);color:white}
 input{
  width:100%;
- padding:8px;
- border-radius:8px;
- border:1px solid #555;
+ padding:10px;
+ border-radius:10px;
+ border:1px solid var(--separator);
  background:transparent;
  color:var(--text);
+ font-size:15px;
 }
 .hidden{display:none}
-.small{font-size:13px;color:gray}
+.settingsHeader{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:17px;font-weight:600}
+.settingsGroupTitle{padding:20px 20px 6px;font-size:13px;color:gray}
 </style>
 </head>
+
 <body>
 
 <div id="main">
-<div class="header">
-<div>Switch Controller</div>
-<div>
-<span id="status" class="small">Bağlı değil</span>
-<button onclick="showSettings()">⚙️</button>
-</div>
+<div class="topbar">
+<div id="status" class="subheader">BaÄŸlÄ± deÄŸil</div>
+<button class="iconbtn" onclick="showSettings()">âš™ï¸</button>
 </div>
 
+<div class="header">Switch Controller</div>
+<div class="subheader">Bluetooth kontrol paneli</div>
+
 <div class="card">
-<button onclick="manualConnect()">Bluetooth Bağlan</button>
+<button onclick="manualConnect()">Bluetooth BaÄŸlan</button>
 </div>
 
 <div class="card" id="switches"></div>
 </div>
 
 <div id="settings" class="hidden">
-<div class="header">
-<button onclick="showMain()">← Geri</button>
-<div>Ayarlar</div>
-<div></div>
+<div class="settingsHeader">
+<button class="iconbtn" onclick="showMain()">â€¹</button>
+Ayarlar
 </div>
+
+<div class="settingsGroupTitle">GÃ–RÃœNÃœM</div>
 
 <div class="card">
 Tema rengi<br><br>
@@ -97,9 +113,20 @@ Tema rengi<br><br>
 
 <div class="card">
 Tema Modu<br><br>
-<button onclick="setMode('light')">☀️ Açık</button>
-<button onclick="setMode('dark')">🌙 Karanlık</button>
-<button onclick="setMode('system')">🤖 Sistem</button>
+<button onclick="setMode('light')">â˜€ï¸ AÃ§Ä±k</button>
+<button onclick="setMode('dark')">ğŸŒ™ KaranlÄ±k</button>
+<button onclick="setMode('system')">ğŸ¤– Sistem</button>
+</div>
+
+<div class="settingsGroupTitle">GERÄ° BÄ°LDÄ°RÄ°M</div>
+<div class="card">
+ <div class="row">
+  Haptik Geri Bildirim
+  <div class="segment">
+   <button onclick="setHaptics(true)">AÃ§Ä±k</button>
+   <button onclick="setHaptics(false)">KapalÄ±</button>
+  </div>
+ </div>
 </div>
 
 <div id="settingsList"></div>
@@ -118,6 +145,9 @@ let config = JSON.parse(localStorage.getItem("config")) || [
  {name:"Sistem",on:"3ON",off:"3OFF"}
 ];
 
+let haptics = JSON.parse(localStorage.getItem("haptics"));
+if(haptics===null) haptics=true;
+
 function saveConfig(){
  localStorage.setItem("config",JSON.stringify(config));
  render();
@@ -128,9 +158,9 @@ function render(){
  s.innerHTML="";
  config.forEach((sw,i)=>{
   s.innerHTML+=`
-   <div class="switchRow">
+   <div class="row">
     ${sw.name}
-    <div class="onoff">
+    <div class="segment">
      <button onclick="send(${i},true)">ON</button>
      <button onclick="send(${i},false)">OFF</button>
     </div>
@@ -141,12 +171,17 @@ function render(){
  set.innerHTML="";
  config.forEach((sw,i)=>{
  set.innerHTML+=`
+ <div class="settingsGroupTitle">${sw.name}</div>
  <div class="card">
- İsim<br><input value="${sw.name}" onchange="config[${i}].name=this.value;saveConfig()"><br><br>
- ON komutu<br><input value="${sw.on}" onchange="config[${i}].on=this.value;saveConfig()"><br><br>
- OFF komutu<br><input value="${sw.off}" onchange="config[${i}].off=this.value;saveConfig()">
+ Ä°sim
+ <input value="${sw.name}" onchange="config[${i}].name=this.value;saveConfig()"><br><br>
+ ON Komutu
+ <input value="${sw.on}" onchange="config[${i}].on=this.value;saveConfig()"><br><br>
+ OFF Komutu
+ <input value="${sw.off}" onchange="config[${i}].off=this.value;saveConfig()">
  </div>`;
  });
+ updateHapticsUI();
 }
 render();
 
@@ -168,21 +203,41 @@ function applyMode(mode){
 function setMode(m){localStorage.setItem("mode",m);applyMode(m);}
 applyMode(localStorage.getItem("mode")||"system");
 
+function setHaptics(v){
+ haptics=v;
+ localStorage.setItem("haptics",JSON.stringify(v));
+ updateHapticsUI();
+}
+
+function updateHapticsUI(){
+ document.querySelectorAll(".segment").forEach(seg=>{
+   const btns=seg.querySelectorAll("button");
+   if(btns.length===2 && btns[0].innerText==="AÃ§Ä±k"){
+     btns[0].classList.toggle("active",haptics);
+     btns[1].classList.toggle("active",!haptics);
+   }
+ });
+}
+
 async function manualConnect(){
- device = await navigator.bluetooth.requestDevice({ 
-  acceptAllDevices:true,
-  optionalServices:[SERVICE]
+ device = await navigator.bluetooth.requestDevice({
+   acceptAllDevices:true,
+   optionalServices:[SERVICE]
  });
  await connectDevice();
 }
+
 async function connectDevice(){
  const server = await device.gatt.connect();
  const service = await server.getPrimaryService(SERVICE);
  characteristic = await service.getCharacteristic(CHAR);
- document.getElementById("status").innerText="Bağlandı";
+ document.getElementById("status").innerText="BaÄŸlandÄ±";
  localStorage.setItem("lastDevice",device.id);
- device.addEventListener("gattserverdisconnected",()=>{document.getElementById("status").innerText="Bağlantı koptu";});
+ device.addEventListener("gattserverdisconnected",()=>{
+   document.getElementById("status").innerText="BaÄŸlantÄ± koptu";
+ });
 }
+
 async function autoReconnect(){
  const last=localStorage.getItem("lastDevice");
  if(!last||!navigator.bluetooth.getDevices) return;
@@ -193,13 +248,16 @@ async function autoReconnect(){
 autoReconnect();
 
 function send(i,state){
- if(!characteristic) return alert("Bağlanmadı");
- navigator.vibrate(20);
+ if(!characteristic) return alert("BaÄŸlanmadÄ±");
+ if(haptics) navigator.vibrate(20);
  const cmd = state ? config[i].on : config[i].off;
  characteristic.writeValue(new TextEncoder().encode(cmd));
 }
 
-if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js");}
+if("serviceWorker" in navigator){
+ navigator.serviceWorker.register("sw.js");
+}
 </script>
+
 </body>
 </html>
