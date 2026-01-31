@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Switch Controller</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{
+ --theme:#007aff;
+ --bg:#f2f2f7;
+ --card:#fff;
+ --text:#000;
+}
+[data-theme="dark"]{
+ --bg:#000;
+ --card:#1c1c1e;
+ --text:#fff;
+}
+body{
+ margin:0;
+ background:var(--bg);
+ font-family:-apple-system;
+ color:var(--text);
+}
+.header{
+ padding:18px;
+ font-size:20px;
+ font-weight:600;
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+}
+.card{
+ background:var(--card);
+ margin:12px;
+ padding:16px;
+ border-radius:14px;
+}
+button{
+ padding:10px 16px;
+ border:none;
+ border-radius:12px;
+ background:var(--theme);
+ color:white;
+ font-size:15px;
+}
+.switchRow{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ margin:12px 0;
+}
+.onoff button{margin-left:6px;background:#444}
+input{
+ width:100%;
+ padding:8px;
+ border-radius:8px;
+ border:1px solid #555;
+ background:transparent;
+ color:var(--text);
+}
+.hidden{display:none}
+.small{font-size:13px;color:gray}
+</style>
+</head>
+<body>
+
+<div id="main">
+<div class="header">
+<div>Switch Controller</div>
+<div>
+<span id="status" class="small">Bağlı değil</span>
+<button onclick="showSettings()">⚙️</button>
+</div>
+</div>
+
+<div class="card">
+<button onclick="manualConnect()">Bluetooth Bağlan</button>
+</div>
+
+<div class="card" id="switches"></div>
+</div>
+
+<div id="settings" class="hidden">
+<div class="header">
+<button onclick="showMain()">← Geri</button>
+<div>Ayarlar</div>
+<div></div>
+</div>
+
+<div class="card">
+Tema rengi<br><br>
+<input type="color" onchange="setTheme(this.value)">
+</div>
+
+<div class="card">
+Tema Modu<br><br>
+<button onclick="setMode('light')">☀️ Açık</button>
+<button onclick="setMode('dark')">🌙 Karanlık</button>
+<button onclick="setMode('system')">🤖 Sistem</button>
+</div>
+
+<div id="settingsList"></div>
+</div>
+
+<script>
+const SERVICE="0000ffe0-0000-1000-8000-00805f9b34fb";
+const CHAR="0000ffe1-0000-1000-8000-00805f9b34fb";
+
+let characteristic;
+let device;
+
+let config = JSON.parse(localStorage.getItem("config")) || [
+ {name:"Panzot",on:"1ON",off:"1OFF"},
+ {name:"LED",on:"2ON",off:"2OFF"},
+ {name:"Sistem",on:"3ON",off:"3OFF"}
+];
+
+function saveConfig(){
+ localStorage.setItem("config",JSON.stringify(config));
+ render();
+}
+
+function render(){
+ const s=document.getElementById("switches");
+ s.innerHTML="";
+ config.forEach((sw,i)=>{
+  s.innerHTML+=`
+   <div class="switchRow">
+    ${sw.name}
+    <div class="onoff">
+     <button onclick="send(${i},true)">ON</button>
+     <button onclick="send(${i},false)">OFF</button>
+    </div>
+   </div>`;
+ });
+
+ const set=document.getElementById("settingsList");
+ set.innerHTML="";
+ config.forEach((sw,i)=>{
+ set.innerHTML+=`
+ <div class="card">
+ İsim<br><input value="${sw.name}" onchange="config[${i}].name=this.value;saveConfig()"><br><br>
+ ON komutu<br><input value="${sw.on}" onchange="config[${i}].on=this.value;saveConfig()"><br><br>
+ OFF komutu<br><input value="${sw.off}" onchange="config[${i}].off=this.value;saveConfig()">
+ </div>`;
+ });
+}
+render();
+
+function showSettings(){main.classList.add("hidden");settings.classList.remove("hidden");}
+function showMain(){settings.classList.add("hidden");main.classList.remove("hidden");}
+
+function setTheme(c){
+ document.documentElement.style.setProperty("--theme",c);
+ localStorage.setItem("theme",c);
+}
+const savedTheme=localStorage.getItem("theme");
+if(savedTheme) setTheme(savedTheme);
+
+function applyMode(mode){
+ if(mode==="dark") document.documentElement.setAttribute("data-theme","dark");
+ else if(mode==="light") document.documentElement.setAttribute("data-theme","light");
+ else document.documentElement.removeAttribute("data-theme");
+}
+function setMode(m){localStorage.setItem("mode",m);applyMode(m);}
+applyMode(localStorage.getItem("mode")||"system");
+
+async function manualConnect(){
+ device = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}]});
+ await connectDevice();
+}
+async function connectDevice(){
+ const server = await device.gatt.connect();
+ const service = await server.getPrimaryService(SERVICE);
+ characteristic = await service.getCharacteristic(CHAR);
+ document.getElementById("status").innerText="Bağlandı";
+ localStorage.setItem("lastDevice",device.id);
+ device.addEventListener("gattserverdisconnected",()=>{document.getElementById("status").innerText="Bağlantı koptu";});
+}
+async function autoReconnect(){
+ const last=localStorage.getItem("lastDevice");
+ if(!last||!navigator.bluetooth.getDevices) return;
+ const devices = await navigator.bluetooth.getDevices();
+ device = devices.find(d=>d.id===last);
+ if(device) connectDevice();
+}
+autoReconnect();
+
+function send(i,state){
+ if(!characteristic) return alert("Bağlanmadı");
+ navigator.vibrate(20);
+ const cmd = state ? config[i].on : config[i].off;
+ characteristic.writeValue(new TextEncoder().encode(cmd));
+}
+
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js");}
+</script>
+</body>
+</html>
